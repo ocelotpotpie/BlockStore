@@ -24,14 +24,15 @@ public class WorldEditHook {
         if (world == null) {
             return;
         }
+
         final ChunkManager manager = BlockStore.getInstance().getManager(world.getName());
         event.setExtent(new AbstractDelegateExtent(event.getExtent()) {
             @Override
-            public boolean setBlock(Vector location, BlockStateHolder block) throws WorldEditException {
-                BlockLoc blockLoc = BlockLoc.fromLocation(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+            public boolean setBlock(Vector pos, BlockStateHolder block) throws WorldEditException {
+                BlockLoc blockLoc = BlockLoc.fromLocation(pos.getX(), pos.getY(), pos.getZ());
                 ChunkStore store = manager.getChunkStore(blockLoc.chunkLoc, true);
                 store.setPlaced(blockLoc, false);
-                return getExtent().setBlock(location, block);
+                return getExtent().setBlock(pos, block);
             }
         });
     }
