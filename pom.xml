@@ -16,7 +16,19 @@
     </properties>
 
     <build>
-        <finalName>BlockStore</finalName>
+        <defaultGoal>clean package</defaultGoal>
+        <finalName>BlockStore-${project.version}</finalName>
+        <resources>
+            <resource>
+                <targetPath>.</targetPath>
+                <filtering>true</filtering>
+                <directory>${basedir}/src/main/resources/</directory>
+                <includes>
+                    <include>plugin.yml</include>
+                    <include>config.yml</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
