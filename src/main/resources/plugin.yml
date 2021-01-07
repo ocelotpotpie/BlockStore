@@ -3,6 +3,7 @@ author: sothatsit
 name: BlockStore
 version: ${project.version}
 soft-depend: [WorldEdit]
+api-version: 1.13
 commands:
    blockstore:
       description: 'BlockStore main command'

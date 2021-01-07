@@ -1,27 +1,37 @@
 package net.sothatsit.blockstore;
 
-import net.sothatsit.blockstore.chunkstore.ChunkLoc;
-import net.sothatsit.blockstore.chunkstore.ChunkManager;
-import org.bukkit.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.*;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockGrowEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
+import net.sothatsit.blockstore.chunkstore.ChunkLoc;
+import net.sothatsit.blockstore.chunkstore.ChunkManager;
 
 public class BlockStore extends JavaPlugin implements Listener {
-    
+
     private static BlockStore instance;
     private final Map<String, ChunkManager> managers = new ConcurrentHashMap<>();
     private final BlockStoreConfig blockStoreConfig = new BlockStoreConfig();
@@ -33,12 +43,12 @@ public class BlockStore extends JavaPlugin implements Listener {
         blockStoreConfig.reload();
 
         Bukkit.getPluginManager().registerEvents(this, this);
-        
+
         getCommand("blockstore").setExecutor(new BlockStoreCommand());
-        
+
         if (Bukkit.getPluginManager().getPlugin("WorldEdit") != null) {
             Logger logger = getLogger();
-            
+
             try {
                 WorldEditHook hook = new WorldEditHook();
 
@@ -57,7 +67,7 @@ public class BlockStore extends JavaPlugin implements Listener {
             }
         }
     }
-    
+
     @Override
     public void onDisable() {
         for (ChunkManager manager : managers.values()) {
@@ -71,9 +81,9 @@ public class BlockStore extends JavaPlugin implements Listener {
     public BlockStoreConfig getBlockStoreConfig() {
         return blockStoreConfig;
     }
-    
-    public ChunkManager getManager(String world) {
-        return managers.get(world);
+
+    public ChunkManager getManager(String worldName) {
+        return managers.computeIfAbsent(worldName, key -> new ChunkManager(Bukkit.getWorld(key)));
     }
 
     public ChunkManager getManager(Location location) {
@@ -83,35 +93,35 @@ public class BlockStore extends JavaPlugin implements Listener {
     public ChunkManager getManager(World world) {
         return managers.computeIfAbsent(world.getName(), key -> new ChunkManager(world));
     }
-    
+
     public Map<String, ChunkManager> getChunkManagers() {
         return managers;
     }
-    
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockGrow(BlockGrowEvent event) {
         BlockStoreApi.setPlaced(event.getBlock(), false);
     }
-    
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         BlockStoreApi.setPlaced(event.getBlock(), false);
     }
-    
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         BlockStoreApi.setPlaced(event.getBlock(), true);
     }
 
     private static final BlockFace[] PISTON_BLOCK_FACES_BY_DATA = {
-            BlockFace.DOWN,
-            BlockFace.UP,
-            BlockFace.NORTH,
-            BlockFace.SOUTH,
-            BlockFace.WEST,
-            BlockFace.EAST,
-            BlockFace.SELF,
-            BlockFace.SELF,
+        BlockFace.DOWN,
+        BlockFace.UP,
+        BlockFace.NORTH,
+        BlockFace.SOUTH,
+        BlockFace.WEST,
+        BlockFace.EAST,
+        BlockFace.SELF,
+        BlockFace.SELF,
     };
 
     private BlockFace getPistonDirection(Block block) {
@@ -144,7 +154,7 @@ public class BlockStore extends JavaPlugin implements Listener {
 
         BlockStoreApi.setPlaced(pistonArm, pistonPlaced);
     }
-    
+
     @SuppressWarnings("deprecation")
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPistonRetract(BlockPistonRetractEvent event) {
@@ -171,21 +181,21 @@ public class BlockStore extends JavaPlugin implements Listener {
             manager.moveBlocksAsync(blocks, direction.getOppositeFace());
         });
     }
-    
+
     @EventHandler
     public void onChunkLoad(final ChunkLoadEvent event) {
-        if(blockStoreConfig.getPreloadStrategy() == PreloadStrategy.ALL) {
+        if (blockStoreConfig.getPreloadStrategy() == PreloadStrategy.ALL) {
             getManager(event.getWorld()).preloadChunk(event.getChunk());
         }
     }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if(blockStoreConfig.getPreloadStrategy() == PreloadStrategy.CLOSE) {
+        if (blockStoreConfig.getPreloadStrategy() == PreloadStrategy.CLOSE) {
             ChunkLoc before = ChunkLoc.fromLocation(event.getFrom());
             ChunkLoc after = ChunkLoc.fromLocation(event.getTo());
 
-            if(!before.equals(after)) {
+            if (!before.equals(after)) {
                 getManager(event.getTo().getWorld()).preloadStoresAround(after);
             }
         }
@@ -193,11 +203,11 @@ public class BlockStore extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        if(blockStoreConfig.getPreloadStrategy() == PreloadStrategy.CLOSE) {
+        if (blockStoreConfig.getPreloadStrategy() == PreloadStrategy.CLOSE) {
             ChunkLoc before = ChunkLoc.fromLocation(event.getFrom());
             ChunkLoc after = ChunkLoc.fromLocation(event.getTo());
 
-            if(!before.equals(after)) {
+            if (!before.equals(after)) {
                 getManager(event.getTo().getWorld()).preloadStoresAround(after);
             }
         }
@@ -205,7 +215,7 @@ public class BlockStore extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if(blockStoreConfig.getPreloadStrategy() == PreloadStrategy.CLOSE) {
+        if (blockStoreConfig.getPreloadStrategy() == PreloadStrategy.CLOSE) {
             Player player = event.getPlayer();
 
             ChunkLoc chunkLoc = ChunkLoc.fromLocation(player.getLocation());
@@ -215,9 +225,9 @@ public class BlockStore extends JavaPlugin implements Listener {
             manager.preloadStoresAround(chunkLoc);
         }
     }
-    
+
     public static BlockStore getInstance() {
         return instance;
     }
-    
+
 }
