@@ -14,7 +14,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import org.bukkit.Bukkit;
 import org.bukkit.World;
 
 import net.sothatsit.blockstore.util.Checks;
@@ -227,20 +226,35 @@ public class LoadedChunkStore extends ChunkStore {
         }
     }
 
-    public static LoadedChunkStore read(ObjectInputStream stream, int version) throws IOException, ClassNotFoundException {
+    /**
+     * Load a {@link ChunkStore} with the specified file format version.
+     *
+     * @param stream  the stream corresponding to the file on disk.
+     * @param version the file format version.
+     * @param world   the World that will contain the chunk. Note that, due to a
+     *                design flaw, ChunkStore files contain the name of their
+     *                corresponding world, but that does not allow for the world
+     *                to be renamed. So instead, the caller tells the ChunkStore
+     *                what world it belongs to; the world name in the file is
+     *                ignored.
+     * @return a {@link LoadedChunkStore} containing the metadata for the chunk.
+     * @throws IOException
+     * @throws ClassNotFoundException
+     */
+    public static LoadedChunkStore read(ObjectInputStream stream, int version, World world) throws IOException, ClassNotFoundException {
         switch (version) {
         case 1:
-            return readVersion1(stream);
+            return readVersion1(stream, world);
         case 2:
-            return readVersion2(stream);
+            return readVersion2(stream, world);
         default:
             throw new IllegalArgumentException("Unknown file version " + version);
         }
     }
 
-    public static LoadedChunkStore readVersion2(ObjectInputStream stream) throws IOException, ClassNotFoundException {
-        String worldName = stream.readUTF();
-        World world = Bukkit.getWorld(worldName);
+    public static LoadedChunkStore readVersion2(ObjectInputStream stream, World world) throws IOException, ClassNotFoundException {
+        // Read and discard World name from file.
+        stream.readUTF();
 
         int cx = stream.readInt();
         int cz = stream.readInt();
@@ -267,9 +281,9 @@ public class LoadedChunkStore extends ChunkStore {
         return store;
     }
 
-    public static LoadedChunkStore readVersion1(ObjectInputStream stream) throws IOException, ClassNotFoundException {
-        String worldName = stream.readUTF();
-        World world = Bukkit.getWorld(worldName);
+    public static LoadedChunkStore readVersion1(ObjectInputStream stream, World world) throws IOException, ClassNotFoundException {
+        // Read and discard World name from file.
+        stream.readUTF();
 
         int cx = stream.readInt();
         int cz = stream.readInt();

@@ -291,9 +291,9 @@ public class ChunkManager {
             return new LoadedChunkStore(world, chunkLoc);
         }
 
-        // One or other file exists.
+        // One or other file exists. Load one of them.
+        ObjectInputStream stream = null;
         try {
-            ObjectInputStream stream;
             int version;
 
             // New format file takes precedence over legacy format.
@@ -308,14 +308,11 @@ public class ChunkManager {
                 version = 1;
             }
 
-            // TODO: close steam when exception thrown from read().
-            LoadedChunkStore store = LoadedChunkStore.read(stream, version);
+            LoadedChunkStore store = LoadedChunkStore.read(stream, version, world);
 
             if (store == null) {
                 return new LoadedChunkStore(world, chunkLoc);
             }
-
-            stream.close();
 
             return store;
         } catch (IOException | ClassNotFoundException e) {
@@ -324,6 +321,15 @@ public class ChunkManager {
             BlockStore.getInstance().getLogger().severe("Possibly corrupted BlockStore file " + file);
 
             return new LoadedChunkStore(world, chunkLoc);
+
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
