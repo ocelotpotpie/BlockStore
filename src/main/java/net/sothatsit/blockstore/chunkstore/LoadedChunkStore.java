@@ -1,21 +1,27 @@
 package net.sothatsit.blockstore.chunkstore;
 
-import net.sothatsit.blockstore.util.Checks;
-import org.bukkit.Bukkit;
-import org.bukkit.World;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.util.BitSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+import org.bukkit.Bukkit;
+import org.bukkit.World;
+
+import net.sothatsit.blockstore.util.Checks;
+
+/**
+ * A {@link ChunkStore} implementation that does the actual file I/O.
+ */
 public class LoadedChunkStore extends ChunkStore {
 
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
@@ -29,7 +35,7 @@ public class LoadedChunkStore extends ChunkStore {
     public LoadedChunkStore(World world, ChunkLoc loc) {
         this(world, loc, new BitSet(16 * 64 * 16));
     }
-    
+
     public LoadedChunkStore(World world, ChunkLoc chunkLoc, BitSet store) {
         super(world, chunkLoc);
 
@@ -190,8 +196,8 @@ public class LoadedChunkStore extends ChunkStore {
             stream.writeObject(store);
 
             Set<Integer> plugins = metadata.values().stream()
-                    .flatMap(meta -> meta.getPlugins().stream())
-                    .collect(Collectors.toSet());
+                .flatMap(meta -> meta.getPlugins().stream())
+                .collect(Collectors.toSet());
 
             stream.writeInt(plugins.size());
 
@@ -199,8 +205,8 @@ public class LoadedChunkStore extends ChunkStore {
                 stream.writeInt(plugin);
 
                 int blockCount = (int) metadata.values().stream()
-                        .filter(meta -> meta.containsPlugin(plugin))
-                        .count();
+                    .filter(meta -> meta.containsPlugin(plugin))
+                    .count();
 
                 stream.writeInt(blockCount);
 
@@ -208,8 +214,9 @@ public class LoadedChunkStore extends ChunkStore {
                     int blockIndex = entry.getKey();
                     BlockMeta meta = entry.getValue();
 
-                    if(!meta.containsPlugin(plugin))
+                    if (!meta.containsPlugin(plugin)) {
                         continue;
+                    }
 
                     stream.writeInt(blockIndex);
                     meta.write(stream, plugin);
@@ -222,12 +229,12 @@ public class LoadedChunkStore extends ChunkStore {
 
     public static LoadedChunkStore read(ObjectInputStream stream, int version) throws IOException, ClassNotFoundException {
         switch (version) {
-            case 1:
-                return readVersion1(stream);
-            case 2:
-                return readVersion2(stream);
-            default:
-                throw new IllegalArgumentException("Unknown file version " + version);
+        case 1:
+            return readVersion1(stream);
+        case 2:
+            return readVersion2(stream);
+        default:
+            throw new IllegalArgumentException("Unknown file version " + version);
         }
     }
 
@@ -263,22 +270,22 @@ public class LoadedChunkStore extends ChunkStore {
     public static LoadedChunkStore readVersion1(ObjectInputStream stream) throws IOException, ClassNotFoundException {
         String worldName = stream.readUTF();
         World world = Bukkit.getWorld(worldName);
-        
+
         int cx = stream.readInt();
         int cz = stream.readInt();
         int cy = stream.readInt();
         ChunkLoc chunkLoc = new ChunkLoc(cx, cy, cz);
 
         BitSet values = convertToBitSet((boolean[][][]) stream.readObject());
-        
+
         LoadedChunkStore store = new LoadedChunkStore(world, chunkLoc, values);
-        
+
         int plugins = stream.readInt();
-        
+
         for (int i = 0; i < plugins; i++) {
             int plugin = stream.readInt();
             int blocks = stream.readInt();
-            
+
             for (int w = 0; w < blocks; w++) {
                 byte[] loc = unpackInt(stream.readInt());
                 BlockLoc location = new BlockLoc(chunkLoc, loc[0], loc[1], loc[2]);
@@ -286,16 +293,16 @@ public class LoadedChunkStore extends ChunkStore {
                 store.getMeta(location).read(stream, plugin);
             }
         }
-        
+
         return store;
     }
 
     private static BitSet convertToBitSet(boolean[][][] values) {
         BitSet bitSet = new BitSet(16 * 64 * 16);
 
-        for(int x = 0; x < 16; x++) {
-            for(int y = 0; y < 64; y++) {
-                for(int z = 0; z < 16; z++) {
+        for (int x = 0; x < 16; x++) {
+            for (int y = 0; y < 64; y++) {
+                for (int z = 0; z < 16; z++) {
                     bitSet.set(BlockLoc.calcBlockIndex(x, y, z), values[x][y][z]);
                 }
             }
@@ -307,5 +314,5 @@ public class LoadedChunkStore extends ChunkStore {
     private static byte[] unpackInt(int num) {
         return ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(num).array();
     }
-    
+
 }

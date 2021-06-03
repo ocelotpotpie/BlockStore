@@ -30,6 +30,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import net.sothatsit.blockstore.chunkstore.ChunkLoc;
 import net.sothatsit.blockstore.chunkstore.ChunkManager;
 
+/**
+ * Main plugin class.
+ */
 public class BlockStore extends JavaPlugin implements Listener {
 
     private static BlockStore instance;

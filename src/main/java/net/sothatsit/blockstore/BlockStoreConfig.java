@@ -1,10 +1,13 @@
 package net.sothatsit.blockstore;
 
+import java.util.logging.Logger;
+
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
-import java.util.logging.Logger;
-
+/**
+ * Provides access to the configuration.
+ */
 public class BlockStoreConfig {
 
     private PreloadStrategy preloadStrategy = PreloadStrategy.CLOSE;
@@ -41,18 +44,18 @@ public class BlockStoreConfig {
     }
 
     private PreloadStrategy loadPreloadStrategy(ConfigurationSection config) {
-        if(!config.isSet("preload")) {
+        if (!config.isSet("preload")) {
             error("'preload' not set."
-                    + " Should be set to 'all', 'close' or 'none'."
-                    + " Defaulting to 'close'.");
+                  + " Should be set to 'all', 'close' or 'none'."
+                  + " Defaulting to 'close'.");
 
             return PreloadStrategy.CLOSE;
         }
 
-        if(!config.isString("preload")) {
+        if (!config.isString("preload")) {
             error("'preload' not text."
-                    + " Should be set to 'all', 'close' or 'none'."
-                    + " Defaulting to 'close'.");
+                  + " Should be set to 'all', 'close' or 'none'."
+                  + " Defaulting to 'close'.");
 
             return PreloadStrategy.CLOSE;
         }
@@ -60,10 +63,10 @@ public class BlockStoreConfig {
         String preload = config.getString("preload");
         PreloadStrategy strategy = PreloadStrategy.getStrategy(preload);
 
-        if(strategy == null) {
+        if (strategy == null) {
             error("unknown preload value '" + preload + "'."
-                    + " Should be set to 'all', 'close' or 'none'."
-                    + " Defaulting to 'close'.");
+                  + " Should be set to 'all', 'close' or 'none'."
+                  + " Defaulting to 'close'.");
 
             return PreloadStrategy.CLOSE;
         }
@@ -74,25 +77,25 @@ public class BlockStoreConfig {
     }
 
     private double loadUnloadTime(ConfigurationSection config) {
-        if(!config.isSet("unload-time")) {
+        if (!config.isSet("unload-time")) {
             error("'unload-time' not set, should be a number in seconds."
-                    + " Defaulting to 60 seconds.");
+                  + " Defaulting to 60 seconds.");
 
             return 60;
         }
 
-        if(!config.isInt("unload-time") && !config.isDouble("unload-time")) {
+        if (!config.isInt("unload-time") && !config.isDouble("unload-time")) {
             error("'unload-time' must be a number in seconds."
-                    + " Defaulting to 60 seconds.");
+                  + " Defaulting to 60 seconds.");
 
             return 60;
         }
 
         double unloadTime = config.getDouble("unload-time");
 
-        if(unloadTime <= 0) {
+        if (unloadTime <= 0) {
             error("'unload-time' must be greater than 0, it is a time in seconds."
-                    + " Defaulting to 60 seconds.");
+                  + " Defaulting to 60 seconds.");
 
             return 60;
         }

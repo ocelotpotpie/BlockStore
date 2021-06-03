@@ -1,16 +1,24 @@
 package net.sothatsit.blockstore;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
-import net.sothatsit.blockstore.chunkstore.*;
-import net.sothatsit.blockstore.util.Checks;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
 
+import net.sothatsit.blockstore.chunkstore.ChunkManager;
+import net.sothatsit.blockstore.chunkstore.ChunkStore;
+import net.sothatsit.blockstore.chunkstore.NameStore;
+import net.sothatsit.blockstore.util.Checks;
+
+/**
+ * Public API.
+ */
 public class BlockStoreApi {
 
     private static final Set<Class<?>> classWhitelist = new HashSet<>();
@@ -72,7 +80,7 @@ public class BlockStoreApi {
     public static boolean isPlaced(Block block) {
         return isPlaced(block.getLocation());
     }
-    
+
     public static boolean isPlaced(Location location) {
         return getChunkStore(location).isPlaced(location);
     }
@@ -81,38 +89,45 @@ public class BlockStoreApi {
         int dotsSeen = 0;
         int minLength = Math.min(s1.length(), s2.length());
 
-        for(int index = 0; index < minLength; ++index) {
-            if(s1.charAt(index) != s2.charAt(index))
+        for (int index = 0; index < minLength; ++index) {
+            if (s1.charAt(index) != s2.charAt(index)) {
                 return false;
+            }
 
-            if(s1.charAt(index) == '.' && (++dotsSeen) >= 3)
+            if (s1.charAt(index) == '.' && (++dotsSeen) >= 3) {
                 return true;
+            }
         }
 
         return false;
     }
 
     private static Plugin guessCallingPlugin() {
-        for(StackTraceElement element : new Exception().getStackTrace()) {
+        for (StackTraceElement element : new Exception().getStackTrace()) {
             String className = element.getClassName();
 
-            if(className.equals("net.sothatsit.blockstore.BlockStoreApi"))
+            if (className.equals("net.sothatsit.blockstore.BlockStoreApi")) {
                 continue;
+            }
 
-            if(className.startsWith("org.bukkit."))
+            if (className.startsWith("org.bukkit.")) {
                 continue;
+            }
 
-            if(className.startsWith("net.minecraft.server."))
+            if (className.startsWith("net.minecraft.server.")) {
                 continue;
+            }
 
-            if(className.startsWith("java.") || className.startsWith("sun."))
+            if (className.startsWith("java.") || className.startsWith("sun.")) {
                 continue;
+            }
 
-            for(Plugin plugin : Bukkit.getPluginManager().getPlugins()) {
+            for (Plugin plugin : Bukkit.getPluginManager().getPlugins()) {
                 String pluginClassName = plugin.getClass().getName();
 
-                if(areClassNamesSimilar(className, pluginClassName))
+                if (areClassNamesSimilar(className, pluginClassName)) {
                     return plugin;
+                }
             }
         }
 
@@ -142,7 +157,7 @@ public class BlockStoreApi {
     public static void setPlaced(Block block, boolean placed) {
         setPlaced(block.getLocation(), placed);
     }
-    
+
     public static void setPlaced(Location location, boolean placed) {
         getChunkStore(location).setPlaced(location, placed);
     }
@@ -150,7 +165,7 @@ public class BlockStoreApi {
     public static Object getBlockMeta(Block block, Plugin plugin, String key) {
         return getBlockMeta(block.getLocation(), plugin, key);
     }
-    
+
     public static Object getBlockMeta(Location location, Plugin plugin, String key) {
         NameStore names = getNameStore(location);
 
@@ -261,7 +276,7 @@ public class BlockStoreApi {
     public static boolean containsBlockMeta(Block block, Plugin plugin, String key) {
         return containsBlockMeta(block.getLocation(), plugin, key);
     }
-    
+
     public static boolean containsBlockMeta(Location location, Plugin plugin, String key) {
         return getBlockMeta(location, plugin, key) != null;
     }
@@ -293,7 +308,7 @@ public class BlockStoreApi {
     public static void setBlockMeta(Block block, Plugin plugin, String key, Object value) {
         setBlockMeta(block.getLocation(), plugin, key, value);
     }
-    
+
     public static void setBlockMeta(Location location, Plugin plugin, String key, Object value) {
         Checks.ensureNonNull(value, "value");
 
@@ -303,7 +318,7 @@ public class BlockStoreApi {
         }
 
         Checks.ensureTrue(classWhitelist.contains(baseType),
-                "value must be a value or array of type String, boolean, byte, short, int, long, float or double");
+                          "value must be a value or array of type String, boolean, byte, short, int, long, float or double");
 
         NameStore names = getNameStore(location);
 
@@ -316,7 +331,7 @@ public class BlockStoreApi {
     public static void removeBlockMeta(Block block, Plugin plugin, String key) {
         removeBlockMeta(block.getLocation(), plugin, key);
     }
-    
+
     public static void removeBlockMeta(Location location, Plugin plugin, String key) {
         NameStore names = getNameStore(location);
 
@@ -325,5 +340,5 @@ public class BlockStoreApi {
 
         getChunkStore(location).removeMetaValue(location, pluginId, keyId);
     }
-    
+
 }

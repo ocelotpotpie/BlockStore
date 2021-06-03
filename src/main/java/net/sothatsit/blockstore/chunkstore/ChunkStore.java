@@ -1,14 +1,19 @@
 package net.sothatsit.blockstore.chunkstore;
 
-import net.sothatsit.blockstore.util.Checks;
-import org.bukkit.Location;
-import org.bukkit.World;
-
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.bukkit.Location;
+import org.bukkit.World;
+
+import net.sothatsit.blockstore.util.Checks;
+
+/**
+ * Abstract base of classes that store metadata for blocks in a 16 block wide by
+ * 16 block deep by 64 block tall volume of the world.
+ */
 public abstract class ChunkStore {
 
     private final World world;

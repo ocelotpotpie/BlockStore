@@ -1,8 +1,5 @@
 package net.sothatsit.blockstore.chunkstore;
 
-import com.google.common.collect.ImmutableMap;
-import net.sothatsit.blockstore.util.Checks;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -13,6 +10,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
+
+import net.sothatsit.blockstore.util.Checks;
+
+/**
+ * Stores the metadata of one block as a map from inner class {@link #MetaKey}
+ * to Object value.
+ */
 public class BlockMeta {
 
     private final Map<MetaKey, Object> metadata = new ConcurrentHashMap<>();
@@ -33,8 +38,8 @@ public class BlockMeta {
         ImmutableMap.Builder<Integer, Object> values = ImmutableMap.builder();
 
         metadata.entrySet().stream()
-                .filter(entry -> entry.getKey().plugin == plugin)
-                .forEach(entry -> values.put(entry.getKey().key, entry.getValue()));
+            .filter(entry -> entry.getKey().plugin == plugin)
+            .forEach(entry -> values.put(entry.getKey().key, entry.getValue()));
 
         return values.build();
     }
@@ -48,7 +53,7 @@ public class BlockMeta {
 
             ImmutableMap.Builder<Integer, Object> builder = builders.get(plugin);
 
-            if(builder == null) {
+            if (builder == null) {
                 builder = ImmutableMap.builder();
                 builders.put(plugin, builder);
             }
@@ -72,7 +77,7 @@ public class BlockMeta {
 
         metadata.put(new MetaKey(plugin, key), value);
     }
-    
+
     public Object removeValue(int plugin, int key) {
         return metadata.remove(new MetaKey(plugin, key));
     }
@@ -116,8 +121,9 @@ public class BlockMeta {
 
         @Override
         public boolean equals(Object obj) {
-            if(!(obj instanceof MetaKey))
+            if (!(obj instanceof MetaKey)) {
                 return false;
+            }
 
             MetaKey other = (MetaKey) obj;
 
@@ -125,5 +131,5 @@ public class BlockMeta {
         }
 
     }
-    
+
 }

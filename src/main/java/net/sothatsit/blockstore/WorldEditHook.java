@@ -13,6 +13,9 @@ import net.sothatsit.blockstore.chunkstore.BlockLoc;
 import net.sothatsit.blockstore.chunkstore.ChunkManager;
 import net.sothatsit.blockstore.chunkstore.ChunkStore;
 
+/**
+ * Clears the player-placed state of blocks edited by WorldEdit.
+ */
 public class WorldEditHook {
 
     void register() {

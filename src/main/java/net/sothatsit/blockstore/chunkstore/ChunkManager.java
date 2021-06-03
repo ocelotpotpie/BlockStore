@@ -1,9 +1,24 @@
 package net.sothatsit.blockstore.chunkstore;
 
-import net.sothatsit.blockstore.BlockStore;
-import net.sothatsit.blockstore.BlockStoreConfig;
-import net.sothatsit.blockstore.util.Checks;
-import net.sothatsit.blockstore.PreloadStrategy;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -11,17 +26,17 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.zip.*;
+import net.sothatsit.blockstore.BlockStore;
+import net.sothatsit.blockstore.BlockStoreConfig;
+import net.sothatsit.blockstore.PreloadStrategy;
+import net.sothatsit.blockstore.util.Checks;
 
+/**
+ * Maintains a cache of loaded {@link ChunkStore}s indexed by {@link ChunkLoc}.
+ */
 public class ChunkManager {
 
+    // TODO: Consider a minimum thread pool size equal to the number of cores.
     private static final ExecutorService executor = Executors.newCachedThreadPool();
 
     private final World world;
@@ -29,9 +44,10 @@ public class ChunkManager {
     private final Map<ChunkLoc, ChunkStore> storeMap = new ConcurrentHashMap<>();
 
     public ChunkManager(World world) {
-        if (world == null)
+        if (world == null) {
             throw new IllegalArgumentException("world cannot be null");
-        
+        }
+
         this.world = world;
         this.nameStore = new NameStore();
         {
@@ -57,8 +73,9 @@ public class ChunkManager {
 
             // Take a snapshot of the values at this point in time to loop over
             new HashSet<>(storeMap.values()).forEach(store -> {
-                if(store.getTimeSinceUse() < unloadTime || preloadStrategy.shouldRemainLoaded(store))
+                if (store.getTimeSinceUse() < unloadTime || preloadStrategy.shouldRemainLoaded(store)) {
                     return;
+                }
 
                 Bukkit.getScheduler().runTaskAsynchronously(BlockStore.getInstance(), () -> {
                     unloadStore(store);
@@ -73,7 +90,7 @@ public class ChunkManager {
 
     public void saveNames() {
         File namesFile = getNamesFile();
-        
+
         if (!namesFile.exists()) {
             try {
                 namesFile.createNewFile();
@@ -81,62 +98,64 @@ public class ChunkManager {
                 e.printStackTrace();
             }
         }
-        
+
         try {
             FileOutputStream fileStream = new FileOutputStream(namesFile);
             ObjectOutputStream stream = new ObjectOutputStream(fileStream);
-            
+
             nameStore.write(stream);
-            
+
             stream.flush();
             stream.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    
+
     public NameStore getNameStore() {
         return nameStore;
     }
-    
+
     public World getWorld() {
         return world;
     }
-    
+
     public Map<ChunkLoc, ChunkStore> getChunkStores() {
         return storeMap;
     }
-    
+
     public File getStoreFolder() {
         File f = new File(world.getWorldFolder(), "block_place_store");
-        
+
         if (!f.exists()) {
             f.mkdir();
         }
-        
+
         return f;
     }
-    
+
     public File getChunkXFolder(int cx) {
         File f = new File(getStoreFolder(), "x" + cx);
-        
+
         if (!f.exists()) {
             f.mkdir();
         }
-        
+
         return f;
     }
 
     public File getLegacyStoreFile(ChunkLoc chunkLoc) {
-        if(!chunkLoc.exists(world))
+        if (!chunkLoc.exists(world)) {
             return null;
+        }
 
         return new File(getChunkXFolder(chunkLoc.x), "z" + chunkLoc.z + "_y" + chunkLoc.y);
     }
-    
+
     public File getStoreFile(ChunkLoc chunkLoc) {
-        if(!chunkLoc.exists(world))
+        if (!chunkLoc.exists(world)) {
             return null;
+        }
 
         return new File(getChunkXFolder(chunkLoc.x), "z" + chunkLoc.z + "_y" + chunkLoc.y + ".data");
     }
@@ -146,11 +165,13 @@ public class ChunkManager {
     }
 
     public ChunkStore getChunkStore(ChunkLoc chunkLoc, boolean load) {
-        if(!chunkLoc.exists(world))
+        if (!chunkLoc.exists(world)) {
             throw new IllegalArgumentException("chunkLoc " + chunkLoc + " does not exist in this world");
+        }
 
-        if(!load)
+        if (!load) {
             return storeMap.get(chunkLoc);
+        }
 
         return storeMap.computeIfAbsent(chunkLoc, key -> {
             LoadingChunkStore chunkStore = loadStore(chunkLoc);
@@ -170,7 +191,7 @@ public class ChunkManager {
     public void retrieveChunkStore(ChunkLoc chunkLoc, Consumer<ChunkStore> consumer) {
         ChunkStore store = getChunkStore(chunkLoc, true);
 
-        if(store instanceof LoadingChunkStore) {
+        if (store instanceof LoadingChunkStore) {
             ((LoadingChunkStore) store).onLoad(consumer);
         } else {
             consumer.accept(store);
@@ -179,8 +200,8 @@ public class ChunkManager {
 
     public void moveBlocksAsync(Collection<Block> blocks, BlockFace direction) {
         Set<BlockLoc> blockLocs = blocks.stream()
-                .map(BlockLoc::fromBlock)
-                .collect(Collectors.toSet());
+            .map(BlockLoc::fromBlock)
+            .collect(Collectors.toSet());
 
         executor.execute(() -> {
             moveBlocks(blockLocs, direction);
@@ -190,21 +211,22 @@ public class ChunkManager {
     public void moveBlocks(Collection<BlockLoc> blocks, BlockFace direction) {
         Map<BlockLoc, BlockMeta> newStates = new HashMap<>();
 
-        for(BlockLoc location : blocks) {
+        for (BlockLoc location : blocks) {
             BlockMeta state = getChunkStore(location.chunkLoc, true).getBlockState(location);
 
             newStates.put(location.getRelative(direction), state);
         }
 
-        for(BlockLoc location : blocks) {
-            if(newStates.containsKey(location))
+        for (BlockLoc location : blocks) {
+            if (newStates.containsKey(location)) {
                 continue;
+            }
 
             getChunkStore(location.chunkLoc, true).setPlaced(location, false);
         }
 
         newStates.forEach((location, state) -> {
-            if(state != null) {
+            if (state != null) {
                 getChunkStore(location.chunkLoc, true).setBlockState(location, state);
             } else {
                 getChunkStore(location.chunkLoc, true).setPlaced(location, false);
@@ -213,21 +235,21 @@ public class ChunkManager {
     }
 
     public void preloadChunks() {
-        for(Chunk chunk : world.getLoadedChunks()) {
+        for (Chunk chunk : world.getLoadedChunks()) {
             preloadChunk(chunk);
         }
     }
 
     public void preloadChunk(Chunk chunk) {
-        for(int y = 0; y < (world.getMaxHeight() + 63) / 64; ++y) {
+        for (int y = 0; y < (world.getMaxHeight() + 63) / 64; ++y) {
             preloadChunkStore(new ChunkLoc(chunk.getX(), y, chunk.getZ()));
         }
     }
 
     public void preloadStoresAround(ChunkLoc chunkLoc) {
-        for(int dx = -1; dx <= 1; ++dx) {
-            for(int dy = -1; dy <= 1; ++dy) {
-                for(int dz = -1; dz <= 1; ++dz) {
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dz = -1; dz <= 1; ++dz) {
                     ChunkLoc relative = new ChunkLoc(chunkLoc.x + dx, chunkLoc.y + dy, chunkLoc.z + dz);
 
                     preloadChunkStore(relative);
@@ -237,8 +259,9 @@ public class ChunkManager {
     }
 
     public void preloadChunkStore(ChunkLoc chunkLoc) {
-        if(!chunkLoc.exists(world))
+        if (!chunkLoc.exists(world)) {
             return;
+        }
 
         ChunkStore store = getChunkStore(chunkLoc, true);
 
@@ -263,14 +286,18 @@ public class ChunkManager {
         File legacyFile = getLegacyStoreFile(chunkLoc);
         File file = getStoreFile(chunkLoc);
 
-        if (!legacyFile.exists() && !file.exists())
+        // If neither file exists, create an empty store.
+        if (!legacyFile.exists() && !file.exists()) {
             return new LoadedChunkStore(world, chunkLoc);
+        }
 
+        // One or other file exists.
         try {
             ObjectInputStream stream;
             int version;
 
-            if(file.exists()) {
+            // New format file takes precedence over legacy format.
+            if (file.exists()) {
                 FileInputStream fileStream = new FileInputStream(file);
                 GZIPInputStream zipStream = new GZIPInputStream(fileStream);
                 stream = new ObjectInputStream(zipStream);
@@ -281,10 +308,12 @@ public class ChunkManager {
                 version = 1;
             }
 
+            // TODO: close steam when exception thrown from read().
             LoadedChunkStore store = LoadedChunkStore.read(stream, version);
 
-            if (store == null)
+            if (store == null) {
                 return new LoadedChunkStore(world, chunkLoc);
+            }
 
             stream.close();
 
@@ -297,23 +326,25 @@ public class ChunkManager {
             return new LoadedChunkStore(world, chunkLoc);
         }
     }
-    
+
     public void unloadStore(ChunkStore store) {
-        if(store == null)
+        if (store == null) {
             return;
+        }
 
         ChunkLoc chunkLoc = store.getChunkLoc();
 
         storeMap.remove(store.getChunkLoc(), store);
 
-        if(!store.isDirty())
+        if (!store.isDirty()) {
             return;
+        }
 
         boolean empty = store.isEmpty();
 
         File file = getStoreFile(chunkLoc);
         File legacyFile = getLegacyStoreFile(chunkLoc);
-        
+
         if (!file.exists() && !empty) {
             try {
                 file.createNewFile();
@@ -323,7 +354,7 @@ public class ChunkManager {
         } else if (file.exists() && empty) {
             file.delete();
         }
-        
+
         try {
             FileOutputStream fileStream = new FileOutputStream(file);
             GZIPOutputStream zipStream = new GZIPOutputStream(fileStream);
@@ -331,21 +362,21 @@ public class ChunkManager {
 
             stream.writeInt(2);
             store.write(stream);
-            
+
             stream.flush();
             stream.close();
 
-            if(legacyFile.exists()) {
+            if (legacyFile.exists()) {
                 legacyFile.delete();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
     public void saveAll() {
         // Take a snapshot of the values at this point in time to loop over
         new HashSet<>(storeMap.values()).forEach(this::unloadStore);
     }
-    
+
 }

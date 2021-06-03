@@ -1,8 +1,5 @@
 package net.sothatsit.blockstore.chunkstore;
 
-import net.sothatsit.blockstore.util.Checks;
-import org.bukkit.World;
-
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
@@ -13,9 +10,30 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-public class LoadingChunkStore extends ChunkStore {
+import org.bukkit.World;
 
+import net.sothatsit.blockstore.util.Checks;
+
+/**
+ * A {@link ChunkStore} implementation that delegates to an asynchronously
+ * loaded {@link LoadedChunkStore}.
+ *
+ * LoadingChunkStore has a {@link #delegate} member that refers to a
+ * {@link LoadedChunkStore}. That reference is null until the
+ * {@link LoadedChunkStore} is fully loaded.
+ *
+ * {@link ChunkManager#loadStore(ChunkLoc)} loads the delegate
+ * {@link LoadedChunkStore} in another thread (see
+ * {@link ChunkManager#loadStoreSync(ChunkLoc)}, and then sets the
+ * {@link #delegate} reference to point to it, signifying that this
+ * {@link LoadingChunkStore} can now use the delegate.
+ */
+public class LoadingChunkStore extends ChunkStore {
+    /**
+     * Synchronises access to internal state (fields).
+     */
     private final Object lock = new Object();
+
     private final CountDownLatch latch = new CountDownLatch(1);
 
     private final AtomicReference<ChunkStore> delegate = new AtomicReference<>();
@@ -30,8 +48,9 @@ public class LoadingChunkStore extends ChunkStore {
         try {
             boolean success = latch.await(1, TimeUnit.SECONDS);
 
-            if(!success)
+            if (!success) {
                 throw new RuntimeException("Over one second elapsed waiting for the store to load");
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException("Thread interrupted waiting for store to load", e);
         }
@@ -49,12 +68,12 @@ public class LoadingChunkStore extends ChunkStore {
         synchronized (lock) {
             run = hasLoaded();
 
-            if(!run) {
+            if (!run) {
                 onLoad.add(consumer);
             }
         }
 
-        if(run) {
+        if (run) {
             consumer.accept(getDelegate());
         }
     }
@@ -82,16 +101,16 @@ public class LoadingChunkStore extends ChunkStore {
             this.onLoad = null;
         }
 
-        for(Action action : pendingActions) {
+        for (Action action : pendingActions) {
             action.apply(delegate);
         }
 
         latch.countDown();
 
-        for(Consumer<ChunkStore> consumer : onLoad) {
+        for (Consumer<ChunkStore> consumer : onLoad) {
             try {
                 consumer.accept(delegate);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -99,7 +118,7 @@ public class LoadingChunkStore extends ChunkStore {
 
     private void queueAction(Action action) {
         synchronized (lock) {
-            if(hasLoaded()) {
+            if (hasLoaded()) {
                 action.apply(getDelegate());
                 return;
             }
@@ -111,7 +130,7 @@ public class LoadingChunkStore extends ChunkStore {
     @Override
     protected void setLastUse() {
         synchronized (lock) {
-            if(hasLoaded()) {
+            if (hasLoaded()) {
                 getDelegate().setLastUse();
                 return;
             }

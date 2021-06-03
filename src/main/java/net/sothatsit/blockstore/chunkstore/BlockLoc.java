@@ -1,16 +1,43 @@
 package net.sothatsit.blockstore.chunkstore;
 
-import net.sothatsit.blockstore.util.Checks;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 
-public final class BlockLoc {
+import net.sothatsit.blockstore.util.Checks;
 
+/**
+ * Represents the X, Y and Z offsets, in blocks, from the base location of a
+ * {@link ChunkLoc}.
+ *
+ * The offsets are 0 to 15 in the X and Z directions, and 0 to 63 in the Y
+ * direction.
+ */
+public final class BlockLoc {
+    /**
+     * The {@link ChunkLoc} relative to which this object is an offset.
+     */
     public final ChunkLoc chunkLoc;
+
+    /**
+     * The X offset (0 to 15) relative to the base of the {@link ChunkLoc}.
+     */
     public final int relx;
+
+    /**
+     * The Y offset (0 to 63) relative to the base of the {@link ChunkLoc}.
+     */
     public final int rely;
+
+    /**
+     * The Z offset (0 to 15) relative to the base of the {@link ChunkLoc}.
+     */
     public final int relz;
+
+    /**
+     * The index corresponding to (relx, rely, relz) computed as (relx + 16*relz
+     * + 256 * rely).
+     */
     public final int blockIndex;
 
     public BlockLoc(ChunkLoc chunkLoc, int relx, int rely, int relz) {
@@ -55,8 +82,9 @@ public final class BlockLoc {
 
     @Override
     public boolean equals(Object obj) {
-        if(!(obj instanceof BlockLoc))
+        if (!(obj instanceof BlockLoc)) {
             return false;
+        }
 
         BlockLoc other = (BlockLoc) obj;
 
@@ -66,10 +94,10 @@ public final class BlockLoc {
     @Override
     public String toString() {
         return "{chunkLoc: " + chunkLoc
-                       + ", relx: " + relx
-                       + ", rely: " + rely
-                       + ", relz: " + relz
-                       + ", blockIndex: " + blockIndex + "}";
+               + ", relx: " + relx
+               + ", rely: " + rely
+               + ", relz: " + relz
+               + ", blockIndex: " + blockIndex + "}";
     }
 
     public static int calcBlockIndex(int relx, int rely, int relz) {
@@ -97,7 +125,6 @@ public final class BlockLoc {
 
         return new BlockLoc(chunkLoc, relx, rely, relz);
     }
-
 
     public static BlockLoc fromBlockIndex(ChunkLoc chunkLoc, int blockIndex) {
         int relx = blockIndex % 16;

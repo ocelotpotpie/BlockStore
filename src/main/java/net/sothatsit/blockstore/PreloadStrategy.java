@@ -1,12 +1,16 @@
 package net.sothatsit.blockstore;
 
-import net.sothatsit.blockstore.chunkstore.ChunkLoc;
-import net.sothatsit.blockstore.chunkstore.ChunkManager;
-import net.sothatsit.blockstore.chunkstore.ChunkStore;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import net.sothatsit.blockstore.chunkstore.ChunkLoc;
+import net.sothatsit.blockstore.chunkstore.ChunkManager;
+import net.sothatsit.blockstore.chunkstore.ChunkStore;
+
+/**
+ * An enumeration that describes the strategy for preloading chunks.
+ */
 public enum PreloadStrategy {
 
     ALL("All") {
@@ -19,7 +23,7 @@ public enum PreloadStrategy {
         public void initialise() {
             BlockStore plugin = BlockStore.getInstance();
 
-            for(World world : Bukkit.getWorlds()) {
+            for (World world : Bukkit.getWorlds()) {
                 ChunkManager chunkManager = plugin.getManager(world);
 
                 chunkManager.preloadChunks();
@@ -32,13 +36,14 @@ public enum PreloadStrategy {
         public boolean shouldRemainLoaded(ChunkStore store) {
             ChunkLoc chunkLoc = store.getChunkLoc();
 
-            for(Player player : store.getWorld().getPlayers()) {
+            for (Player player : store.getWorld().getPlayers()) {
                 ChunkLoc playerLoc = ChunkLoc.fromLocation(player.getLocation());
 
-                if(Math.abs(playerLoc.x - chunkLoc.x) <= 1
-                        || Math.abs(playerLoc.y - chunkLoc.y) <= 1
-                        || Math.abs(playerLoc.z - chunkLoc.z) <= 1)
+                if (Math.abs(playerLoc.x - chunkLoc.x) <= 1
+                    || Math.abs(playerLoc.y - chunkLoc.y) <= 1
+                    || Math.abs(playerLoc.z - chunkLoc.z) <= 1) {
                     return true;
+                }
             }
 
             return false;
@@ -48,10 +53,10 @@ public enum PreloadStrategy {
         public void initialise() {
             BlockStore plugin = BlockStore.getInstance();
 
-            for(World world : Bukkit.getWorlds()) {
+            for (World world : Bukkit.getWorlds()) {
                 ChunkManager chunkManager = plugin.getManager(world);
 
-                for(Player player : world.getPlayers()) {
+                for (Player player : world.getPlayers()) {
                     ChunkLoc playerLocation = ChunkLoc.fromLocation(player.getLocation());
 
                     chunkManager.preloadStoresAround(playerLocation);
@@ -92,9 +97,10 @@ public enum PreloadStrategy {
     public abstract void initialise();
 
     public static PreloadStrategy getStrategy(String name) {
-        for(PreloadStrategy strategy : PreloadStrategy.values()) {
-            if(!strategy.getName().equalsIgnoreCase(name))
+        for (PreloadStrategy strategy : PreloadStrategy.values()) {
+            if (!strategy.getName().equalsIgnoreCase(name)) {
                 continue;
+            }
 
             return strategy;
         }
