@@ -2,8 +2,8 @@ main: net.sothatsit.blockstore.BlockStore
 author: sothatsit
 name: BlockStore
 version: ${project.version}
-soft-depend: [WorldEdit]
-api-version: 1.13
+softdepend:  [WorldEdit]
+api-version: 1.17
 commands:
    blockstore:
       description: 'BlockStore main command'
